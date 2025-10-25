@@ -1,0 +1,71 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: app-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    networks:
+      - app-network
+    restart: unless-stopped
+ 
+  backend:
+    build: ./backend
+    container_name: app-backend
+    ports:
+      - "4000:4000"
+    command: ["npm","run","dev"]
+    environment:
+      - PORT=4000
+      - MONGO_URL=mongodb://admin:admin123@mongo:27017/myappdb?authSource=admin
+      - JWT_SECRET=supersecretkey
+      - SALT=10
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+    restart: unless-stopped
+ 
+  frontend:
+    build: ./frontend
+    container_name: app-frontend
+    ports:
+      - "5173:5173"
+    command: ["npm","run","dev","--","--host","0.0.0.0","--port","5173"]
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - BACKEND_URL=http://localhost:4000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+ 
+  admin:
+    build: ./admin
+    container_name: app-admin
+    ports:
+      - "5000:5000"
+    command: ["npm","run","dev","--","--host","0.0.0.0","--port","5000"]
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - BACKEND_URL=http://localhost:4000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+ 
+networks:
+  app-network:
+    driver: bridge
+ 
+volumes:
+  mongo-data:
+ 
