@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:latest
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    networks:
+      - app-network
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+
+  backend:
+    image: myrepo/backend:latest
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - MONGO_URL=mongodb://admin:admin123@mongo:27017/myappdb?authSource=admin
+      - JWT_SECRET=supersecretkey
+      - SALT=10
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+
+  frontend:
+    image: myrepo/frontend:latest
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - BACKEND_URL=http://backend:4000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == vm2
+      restart_policy:
+        condition: on-failure
+
+  admin:
+    image: myrepo/admin:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - BACKEND_URL=http://backend:4000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == vm3
+      restart_policy:
+        condition: on-failure
+
+networks:
+  app-network:
+    driver: overlay
+
+volumes:
+  mongo-data:
